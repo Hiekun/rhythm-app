@@ -243,8 +243,9 @@
         
         // ドラッグ&ドロップの処理を適切に登録する
         window.addEventListener("DOMContentLoaded", () => {
-            // 1. すべてのドラッグ可能な要素にイベントを追加
+            // タッチデバイス向けに長押し不要でドラッグ可能にする
             document.querySelectorAll(".draggable").forEach(note => {
+                note.addEventListener("touchstart", touchDragStart, { passive: false });
                 note.addEventListener("dragstart", drag);
                 note.addEventListener("click", function() {
                     if (this.parentElement && this.parentElement.id === "notes") { // 上段のときのみ再生
@@ -260,6 +261,22 @@
                 slot.addEventListener("drop", drop);
             });
         });
+        
+        // タッチデバイスのドラッグ処理
+        function touchDragStart(ev) {
+            ev.preventDefault();
+            let touch = ev.touches[0];
+            let target = ev.target.closest(".draggable");
+            if (target) {
+                let event = new DragEvent("dragstart", {
+                    bubbles: true,
+                    cancelable: true,
+                    dataTransfer: new DataTransfer()
+                });
+                event.dataTransfer.setData("text", target.id);
+                target.dispatchEvent(event);
+            }
+        }
         
         // ドラッグを許可する関数
         function allowDrop(ev) {
@@ -296,45 +313,44 @@
         
         // 音符の順番に再生する関数
         function playSequence() {
-    if (isPlaying) return;
-    isPlaying = true;
-    document.getElementById("play").disabled = true;
-
-    const slots = document.querySelectorAll(".dropzone .slot");
-    let soundsToPlay = [];
-
-    slots.forEach((slot, index) => {
-        if (slot.children.length > 0) {
-            const noteId = slot.children[0].id;
-            let soundType = noteId.includes("note3") ? "dodo" : "don";
-            soundsToPlay.push({ type: soundType });
+            if (isPlaying) return; // すでに再生中なら実行しない
+            isPlaying = true;
+            document.getElementById("play").disabled = true;
+        
+            const slots = document.querySelectorAll(".dropzone .slot");
+            let soundsToPlay = [];
+            
+            // 4拍子のリズムを正しく維持
+            slots.forEach((slot, index) => {
+                if (slot.children.length > 0) {
+                    const noteId = slot.children[0].id;
+                    let soundType = noteId.includes("note3") ? "dodo" : "don";
+                    soundsToPlay.push({ type: soundType, delay: index * baseNoteDuration });
+                }
+            });
+        
+            function playNextSound(index) {
+                if (index >= soundsToPlay.length) {
+                    isPlaying = false;
+                    document.getElementById("play").disabled = false;
+                    return;
+                }
+                
+                setTimeout(() => {
+                    let sound = sounds[soundsToPlay[index].type];
+                    sound.currentTime = 0;
+                    sound.play().then(() => {
+                        playNextSound(index + 1);
+                    }).catch(error => console.error("再生エラー:", error));
+                }, soundsToPlay[index].delay);
+            }
+        
+            playNextSound(0);
         }
-    });
-
-    let index = 0;
-    function playNextSound() {
-        if (index >= soundsToPlay.length) {
-            isPlaying = false;
-            document.getElementById("play").disabled = false;
-            return;
-        }
-
-        let sound = sounds[soundsToPlay[index].type];
-        sound.currentTime = 0;
-        sound.play().then(() => {
-            setTimeout(playNextSound, baseNoteDuration);
-        }).catch(error => console.error("再生エラー:", error));
-
-        index++;
-    }
-
-    playNextSound();
-}
         
         // 再生ボタンのクリックイベント
         let isPlaying = false;
         document.getElementById("play").addEventListener("click", playSequence);
-        </script>
-                                           
+        </script>                                                 
 </body>
 </html>
