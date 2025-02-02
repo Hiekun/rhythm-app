@@ -192,11 +192,6 @@
         border-radius: 10px;
     }
 </style>
-
-
-
-
-    
 </head>
 <body>
     <h2>🥁 リズムづくりアプリ 🥁</h2>
@@ -235,20 +230,64 @@
             </button>
         </div>
     </div>
-
-
-
-    
     <script>
+        // 音声オブジェクトの定義
         const sounds = {
             don: new Audio("don.mp3"),
             dodo: new Audio("dodo.mp3")
         };
-    
-        let eighthNoteSpeed = 250; // 8分音符の再生間隔（ミリ秒）
-        let nextNoteDelay = 400; // 次の音符までの間隔（ミリ秒・8分音符のみ）
-        let isPlaying = false; // 再生中かどうかのフラグ
-    
+        
+        // 再生設定（カスタマイズ可能）
+        let quarterNoteSpeed = 50; // 4分音符の再生時間（ミリ秒）
+        let eighthNoteSpeed = 200; // 8分音符の再生時間（ミリ秒）
+        let quarterNoteExtraDelay = 600; // 4分音符の後に追加する時間（ミリ秒）
+        let eighthNoteExtraDelay = 0; // 8分音符の後に追加する時間（ミリ秒）
+        
+        // ドラッグ&ドロップの処理を適切に登録する
+        window.addEventListener("DOMContentLoaded", () => {
+            // 1. すべてのドラッグ可能な要素にイベントを追加
+            document.querySelectorAll(".draggable").forEach(note => {
+                note.addEventListener("dragstart", drag);
+                note.addEventListener("click", function() {
+                    if (this.parentElement && this.parentElement.id === "notes") { // 上段のときのみ再生
+                        let soundType = this.id.includes("note3") ? "dodo" : "don";
+                        playSound(soundType);
+                    }
+                });
+            });
+        
+            // 2. すべてのドロップゾーンにイベントを追加
+            document.querySelectorAll(".dropzone .slot").forEach(slot => {
+                slot.addEventListener("dragover", allowDrop);
+                slot.addEventListener("drop", drop);
+            });
+        });
+        
+        // ドラッグを許可する関数
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+        
+        // ドラッグ開始時の処理
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+        
+        // ドロップ時の処理
+        function drop(ev) {
+            ev.preventDefault();
+            let data = ev.dataTransfer.getData("text");
+            let draggedElement = document.getElementById(data);
+        
+            // すでに要素が入っていないスロットにのみドロップ可能
+            if (!ev.target.hasChildNodes()) {
+                ev.target.appendChild(draggedElement);
+                draggedElement.style.width = "100%";
+                draggedElement.style.height = "100%";
+            }
+        }
+        
+        // 音声再生の関数
         function playSound(type) {
             if (sounds[type]) {
                 sounds[type].pause(); 
@@ -256,78 +295,51 @@
                 sounds[type].play().catch(error => console.error("再生エラー:", error));
             }
         }
-    
+        
+        // 音符の順番に再生する関数
         function playSequence() {
-    if (isPlaying) return; // すでに再生中なら実行しない
-    isPlaying = true;
-    document.getElementById("play").disabled = true;
-
-    const slots = document.querySelectorAll(".dropzone .slot");
-    let soundsToPlay = [];
-
-    slots.forEach(slot => {
-        if (slot.children.length > 0) {
-            const noteId = slot.children[0].id;
-            let soundType = noteId.includes("note3") ? "dodo" : "don";
-            soundsToPlay.push(soundType);
-        }
-    });
-
-    function playNextSound(index) {
-        if (index >= soundsToPlay.length) {
-            isPlaying = false;
-            document.getElementById("play").disabled = false;
-            return;
-        }
+            if (isPlaying) return; // すでに再生中なら実行しない
+            isPlaying = true;
+            document.getElementById("play").disabled = true;
         
-        let sound = sounds[soundsToPlay[index]];
-        sound.currentTime = 0;
-        sound.play().then(() => {
-            sound.onended = () => playNextSound(index + 1); // 音が終わったら次を再生
-        }).catch(error => console.error("再生エラー:", error));
-    }
-
-    playNextSound(0);
-}
-    
-            // 全体の再生が終了したらボタンを再び有効化
-            setTimeout(() => {
-                isPlaying = false;
-                document.getElementById("play").disabled = false;
-            }, totalDuration + 100);
-        }
-    
-        function allowDrop(ev) {
-            ev.preventDefault();
-        }
-    
-        function drag(ev) {
-            ev.dataTransfer.setData("text", ev.target.id);
-        }
-    
-        function drop(ev) {
-            ev.preventDefault();
-            let data = ev.dataTransfer.getData("text");
-            let draggedElement = document.getElementById(data);
-            if (!ev.target.hasChildNodes()) {
-                ev.target.appendChild(draggedElement);
-                draggedElement.style.width = "100%";
-                draggedElement.style.height = "100%";
-            }
-        }
-    
-        document.getElementById("play").addEventListener("click", playSequence);
+            const slots = document.querySelectorAll(".dropzone .slot");
+            let soundsToPlay = [];
+            let totalDelay = 0;
         
-        // 音符カードをクリックした際に音声を再生（上段にある場合のみ）
-        document.querySelectorAll(".draggable").forEach(note => {
-            note.addEventListener("click", function() {
-                if (this.parentElement && this.parentElement.id === "notes") { // 上段のときのみ再生
-                    let soundType = this.id.includes("note3") ? "dodo" : "don";
-                    playSound(soundType);
+            slots.forEach(slot => {
+                if (slot.children.length > 0) {
+                    const noteId = slot.children[0].id;
+                    let soundType = noteId.includes("note3") ? "dodo" : "don";
+                    let duration = soundType === "dodo" ? eighthNoteSpeed : quarterNoteSpeed;
+                    let extraDelay = soundType === "dodo" ? eighthNoteExtraDelay : quarterNoteExtraDelay;
+                    
+                    soundsToPlay.push({ type: soundType, delay: totalDelay });
+                    totalDelay += duration + extraDelay;
                 }
             });
-        });
-    </script>
-    
+        
+            function playNextSound(index) {
+                if (index >= soundsToPlay.length) {
+                    isPlaying = false;
+                    document.getElementById("play").disabled = false;
+                    return;
+                }
+                
+                setTimeout(() => {
+                    let sound = sounds[soundsToPlay[index].type];
+                    sound.currentTime = 0;
+                    sound.play().then(() => {
+                        playNextSound(index + 1);
+                    }).catch(error => console.error("再生エラー:", error));
+                }, soundsToPlay[index].delay);
+            }
+        
+            playNextSound(0);
+        }
+        
+        // 再生ボタンのクリックイベント
+        let isPlaying = false;
+        document.getElementById("play").addEventListener("click", playSequence);
+        </script>                             
 </body>
 </html>
