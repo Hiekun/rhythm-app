@@ -277,7 +277,7 @@ window.addEventListener("DOMContentLoaded", () => {
             return; // ドラッグ対象でない場合は何もしない
         }
         event.preventDefault();
-    }, { passive: false });
+    }, { passive: true });
 });
 
 // ページ全体のスクロールを防ぐ（iPad用）
