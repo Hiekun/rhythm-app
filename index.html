@@ -193,6 +193,10 @@
     }
 </style>
 
+
+
+
+    
 </head>
 <body>
     <h2>🥁 リズムづくりアプリ 🥁</h2>
@@ -231,6 +235,10 @@
             </button>
         </div>
     </div>
+
+
+
+    
     <script>
         const sounds = {
             don: new Audio("don.mp3"),
@@ -250,31 +258,37 @@
         }
     
         function playSequence() {
-            if (isPlaying) return; // すでに再生中なら実行しない
-            isPlaying = true;
-            document.getElementById("play").disabled = true;
-    
-            const slots = document.querySelectorAll(".dropzone .slot");
-            let delay = 0;
-            let totalDuration = 0;
-    
-            slots.forEach(slot => {
-                if (slot.children.length > 0) {
-                    const noteElement = slot.children[0];
-                    const noteId = noteElement.id;
-                    let soundType = noteId.includes("note3") ? "dodo" : "don";
-    
-                    setTimeout(() => playSound(soundType), delay);
-    
-                    // 8分音符（dodo）の場合のみ nextNoteDelay を適用
-                    if (soundType === "dodo") {
-                        delay += (eighthNoteSpeed * 2 + nextNoteDelay - eighthNoteSpeed);
-                    } else {
-                        delay += 600; // 4分音符は固定の600ms
-                    }
-                    totalDuration = delay;
-                }
-            });
+    if (isPlaying) return; // すでに再生中なら実行しない
+    isPlaying = true;
+    document.getElementById("play").disabled = true;
+
+    const slots = document.querySelectorAll(".dropzone .slot");
+    let soundsToPlay = [];
+
+    slots.forEach(slot => {
+        if (slot.children.length > 0) {
+            const noteId = slot.children[0].id;
+            let soundType = noteId.includes("note3") ? "dodo" : "don";
+            soundsToPlay.push(soundType);
+        }
+    });
+
+    function playNextSound(index) {
+        if (index >= soundsToPlay.length) {
+            isPlaying = false;
+            document.getElementById("play").disabled = false;
+            return;
+        }
+        
+        let sound = sounds[soundsToPlay[index]];
+        sound.currentTime = 0;
+        sound.play().then(() => {
+            sound.onended = () => playNextSound(index + 1); // 音が終わったら次を再生
+        }).catch(error => console.error("再生エラー:", error));
+    }
+
+    playNextSound(0);
+}
     
             // 全体の再生が終了したらボタンを再び有効化
             setTimeout(() => {
