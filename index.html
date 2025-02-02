@@ -233,12 +233,13 @@
     <script>
 // 音声オブジェクトの定義
 const sounds = {
-    don: new Audio("don.mp3")
+    don: new Audio("don.mp3"),
+    dodo: new Audio("dodo.mp3")
 };
 
 // 再生設定（カスタマイズ可能）
 let quarterNoteSpeed = 600; // 4分音符の再生時間（ミリ秒）
-let eighthNoteSpeed = 300; // 8分音符の再生時間（ミリ秒・1回の再生）
+let eighthNoteSpeed = 300; // 8分音符の再生時間（ミリ秒）
 let quarterNotePreDelay = 100; // 4分音符の前に追加する時間（ミリ秒）
 let quarterNotePostDelay = 200; // 4分音符の後に追加する時間（ミリ秒）
 let eighthNotePreDelay = 80; // 8分音符の前に追加する時間（ミリ秒）
@@ -251,8 +252,8 @@ window.addEventListener("DOMContentLoaded", () => {
         note.addEventListener("dragstart", drag);
         note.addEventListener("click", function() {
             if (this.parentElement && this.parentElement.id === "notes") { // 上段のときのみ再生
-                let isEighthNote = this.id.includes("note3");
-                playNoteSequence(isEighthNote);
+                let soundType = this.id.includes("note3") ? "dodo" : "don";
+                playSound(soundType);
             }
         });
     });
@@ -288,20 +289,12 @@ function drop(ev) {
     }
 }
 
-// 4分音符と8分音符を適切に再生する関数
-function playNoteSequence(isEighthNote) {
-    if (isEighthNote) {
-        // 8分音符の場合、2回連続で再生
-        sounds.don.play().then(() => {
-            setTimeout(() => {
-                sounds.don.currentTime = 0;
-                sounds.don.play();
-            }, eighthNoteSpeed);
-        }).catch(error => console.error("再生エラー:", error));
-    } else {
-        // 4分音符の再生
-        sounds.don.currentTime = 0;
-        sounds.don.play().catch(error => console.error("再生エラー:", error));
+// 音声再生の関数
+function playSound(type) {
+    if (sounds[type]) {
+        sounds[type].pause(); 
+        sounds[type].currentTime = 0; 
+        sounds[type].play().catch(error => console.error("再生エラー:", error));
     }
 }
 
@@ -312,40 +305,46 @@ function playSequence() {
     document.getElementById("play").disabled = true;
 
     const slots = document.querySelectorAll(".dropzone .slot");
+    let soundsToPlay = [];
     let totalDelay = 0;
 
-    function scheduleNotePlayback(index) {
-        if (index >= slots.length) {
+    slots.forEach(slot => {
+        if (slot.children.length > 0) {
+            const noteId = slot.children[0].id;
+            let soundType = noteId.includes("note3") ? "dodo" : "don";
+            let duration = soundType === "dodo" ? eighthNoteSpeed : quarterNoteSpeed;
+            let preDelay = soundType === "dodo" ? eighthNotePreDelay : quarterNotePreDelay;
+            let postDelay = soundType === "dodo" ? eighthNotePostDelay : quarterNotePostDelay;
+            
+            totalDelay += preDelay;
+            soundsToPlay.push({ type: soundType, delay: totalDelay });
+            totalDelay += duration + postDelay;
+        }
+    });
+
+    function playNextSound(index) {
+        if (index >= soundsToPlay.length) {
             isPlaying = false;
             document.getElementById("play").disabled = false;
             return;
         }
-
-        let slot = slots[index];
-        if (slot.children.length > 0) {
-            const noteId = slot.children[0].id;
-            let isEighthNote = noteId.includes("note3");
-            let preDelay = isEighthNote ? eighthNotePreDelay : quarterNotePreDelay;
-            let postDelay = isEighthNote ? eighthNotePostDelay : quarterNotePostDelay;
-            let duration = isEighthNote ? eighthNoteSpeed : quarterNoteSpeed;
-            
-            setTimeout(() => {
-                playNoteSequence(isEighthNote);
-                setTimeout(() => {
-                    scheduleNotePlayback(index + 1);
-                }, duration + postDelay);
-            }, preDelay);
-        } else {
-            scheduleNotePlayback(index + 1);
-        }
+        
+        setTimeout(() => {
+            let sound = sounds[soundsToPlay[index].type];
+            sound.currentTime = 0;
+            sound.play().then(() => {
+                playNextSound(index + 1);
+            }).catch(error => console.error("再生エラー:", error));
+        }, soundsToPlay[index].delay);
     }
 
-    scheduleNotePlayback(0);
+    playNextSound(0);
 }
 
 // 再生ボタンのクリックイベント
 let isPlaying = false;
 document.getElementById("play").addEventListener("click", playSequence);
-</script>                             
+</script>
+                             
 </body>
 </html>
