@@ -244,9 +244,9 @@
         // ドラッグ&ドロップの処理を適切に登録する
         window.addEventListener("DOMContentLoaded", () => {
             document.querySelectorAll(".draggable").forEach(note => {
-                note.addEventListener("touchstart", touchStart, { passive: false });
-                note.addEventListener("touchmove", touchMove, { passive: false });
-                note.addEventListener("touchend", touchEnd, { passive: false });
+                note.addEventListener("touchstart", touchStart, { passive: true });
+                note.addEventListener("touchmove", touchMove, { passive: true });
+                note.addEventListener("touchend", touchEnd, { passive: true });
                 note.addEventListener("dragstart", drag);
                 note.addEventListener("click", function() {
                     if (this.parentElement && this.parentElement.id === "notes") {
