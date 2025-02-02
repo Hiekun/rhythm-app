@@ -230,19 +230,41 @@
             </button>
         </div>
     </div>
-    <script>
-        // 音声オブジェクトの定義
-        const sounds = {
-            don: new Audio("4.mp3"),
-            dodo: new Audio("8.mp3")
-        };
-        
-        // 4/4拍子で四分音符=80のリズムを維持
-        const baseNoteDuration = 750; // 4分音符の基準時間（ミリ秒）
-        const noteExtraDelay = 0; // 音符の後に追加する時間（ミリ秒）
+    // Web Audio API を利用
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const sounds = { don: null, dodo: null };
 
-        // ドラッグ&ドロップの処理を適切に登録する
+// 音声を事前ロード
+function loadSounds() {
+    fetch("4.mp3")
+        .then(response => response.arrayBuffer())
+        .then(data => audioContext.decodeAudioData(data))
+        .then(buffer => sounds.don = buffer);
+
+    fetch("8.mp3")
+        .then(response => response.arrayBuffer())
+        .then(data => audioContext.decodeAudioData(data))
+        .then(buffer => sounds.dodo = buffer);
+}
+
+// 音を再生
+function playSound(type, time = 0) {
+    if (sounds[type]) {
+        const source = audioContext.createBufferSource();
+        source.buffer = sounds[type];
+        source.connect(audioContext.destination);
+        source.start(audioContext.currentTime + time);
+    }
+}
+
+// 4/4拍子のリズムを維持（基準時間：四分音符=80）
+const baseNoteDuration = 0.75; // 秒単位（750ms = 0.75秒）
+const noteExtraDelay = 0; // 追加時間（秒）
+
+// ドラッグ&ドロップの処理を適切に登録
 window.addEventListener("DOMContentLoaded", () => {
+    loadSounds(); // 音声を事前ロード
+
     document.querySelectorAll(".draggable").forEach(note => {
         note.addEventListener("touchstart", touchStart, { passive: true });
         note.addEventListener("touchmove", touchMove, { passive: true });
@@ -261,114 +283,89 @@ window.addEventListener("DOMContentLoaded", () => {
         slot.addEventListener("drop", drop);
     });
 
-    // ページ全体のタッチ操作によるスクロールを許可しつつ、
-    // ドラッグ可能な音符カード以外ではドラッグイベントが発生しないようにする
+    // iPad用スクロール制御
     document.addEventListener("touchmove", function (event) {
         if (!event.target.closest(".draggable")) {
-            return; // ドラッグ対象でない場合は何もしない
+            return;
         }
         event.preventDefault();
     }, { passive: false });
 });
-        
-        // ページ全体のスクロールを防ぐ（iPad用）
-        document.addEventListener("touchmove", function(event) {
-            if (!event.target.classList.contains("draggable")) {
-                event.preventDefault();
-            }
-        }, { passive: true });
-        
-        // タッチイベントによるドラッグ処理
-        let activeTouch = null;
-        function touchStart(ev) {
-            ev.preventDefault();
-            activeTouch = ev.touches[0];
+
+// タッチイベントによるドラッグ処理
+let activeTouch = null;
+function touchStart(ev) {
+    ev.preventDefault();
+    activeTouch = ev.touches[0];
+}
+function touchMove(ev) {
+    if (!activeTouch) return;
+    ev.preventDefault();
+    let touch = ev.touches[0];
+    let element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (element && element.classList.contains("slot")) {
+        element.appendChild(ev.target);
+    }
+}
+function touchEnd(ev) {
+    activeTouch = null;
+}
+
+// ドラッグを許可
+function allowDrop(ev) {
+    ev.preventDefault();
+}
+
+// ドラッグ開始
+function drag(ev) {
+    ev.dataTransfer.setData("text", ev.target.id);
+}
+
+// ドロップ時の処理
+function drop(ev) {
+    ev.preventDefault();
+    let data = ev.dataTransfer.getData("text");
+    let draggedElement = document.getElementById(data);
+    if (!ev.target.hasChildNodes()) {
+        ev.target.appendChild(draggedElement);
+        draggedElement.style.width = "100%";
+        draggedElement.style.height = "100%";
+    }
+}
+
+// 音符の順番に再生
+function playSequence() {
+    if (isPlaying) return;
+    isPlaying = true;
+    document.getElementById("play").disabled = true;
+
+    const slots = document.querySelectorAll(".dropzone .slot");
+    let soundsToPlay = [];
+    let delay = 0;
+
+    slots.forEach(slot => {
+        if (slot.children.length > 0) {
+            const noteId = slot.children[0].id;
+            let soundType = noteId.includes("note3") ? "dodo" : "don";
+            soundsToPlay.push({ type: soundType, delay: delay });
+            delay += baseNoteDuration; // 次の音までの時間を追加
         }
-        function touchMove(ev) {
-            if (!activeTouch) return;
-            ev.preventDefault();
-            let touch = ev.touches[0];
-            let element = document.elementFromPoint(touch.clientX, touch.clientY);
-            if (element && element.classList.contains("slot")) {
-                element.appendChild(ev.target);
-            }
-        }
-        function touchEnd(ev) {
-            activeTouch = null;
-        }
-        
-        // ドラッグを許可する関数
-        function allowDrop(ev) {
-            ev.preventDefault();
-        }
-        
-        // ドラッグ開始時の処理
-        function drag(ev) {
-            ev.dataTransfer.setData("text", ev.target.id);
-        }
-        
-        // ドロップ時の処理
-        function drop(ev) {
-            ev.preventDefault();
-            let data = ev.dataTransfer.getData("text");
-            let draggedElement = document.getElementById(data);
-            if (!ev.target.hasChildNodes()) {
-                ev.target.appendChild(draggedElement);
-                draggedElement.style.width = "100%";
-                draggedElement.style.height = "100%";
-            }
-        }
-        
-        // 音声再生の関数
-        function playSound(type) {
-            if (sounds[type]) {
-                sounds[type].pause();
-                sounds[type].currentTime = 0;
-                sounds[type].play().catch(error => console.error("再生エラー:", error));
-            }
-        }
-        
-        // 音符の順番に再生する関数
-        function playSequence() {
-            if (isPlaying) return;
-            isPlaying = true;
-            document.getElementById("play").disabled = true;
-        
-            const slots = document.querySelectorAll(".dropzone .slot");
-            let soundsToPlay = [];
-        
-            slots.forEach((slot, index) => {
-                if (slot.children.length > 0) {
-                    const noteId = slot.children[0].id;
-                    let soundType = noteId.includes("note3") ? "dodo" : "don";
-                    soundsToPlay.push({ type: soundType });
-                }
-            });
-        
-            let index = 0;
-            function playNextSound() {
-                if (index >= soundsToPlay.length) {
-                    isPlaying = false;
-                    document.getElementById("play").disabled = false;
-                    return;
-                }
-        
-                let sound = sounds[soundsToPlay[index].type];
-                sound.currentTime = 0;
-                sound.play().then(() => {
-                    setTimeout(playNextSound, baseNoteDuration);
-                }).catch(error => console.error("再生エラー:", error));
-        
-                index++;
-            }
-        
-            playNextSound();
-        }
-        
-        // 再生ボタンのクリックイベント
-        let isPlaying = false;
-        document.getElementById("play").addEventListener("click", playSequence);
-        </script>
+    });
+
+    soundsToPlay.forEach(note => {
+        playSound(note.type, note.delay);
+    });
+
+    setTimeout(() => {
+        isPlaying = false;
+        document.getElementById("play").disabled = false;
+    }, (delay + noteExtraDelay) * 1000);
+}
+
+// 再生ボタンのクリックイベント
+let isPlaying = false;
+document.getElementById("play").addEventListener("click", playSequence);
+
                                                     
 </body>
 </html>
