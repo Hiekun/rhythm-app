@@ -240,34 +240,43 @@
         // 4/4拍子で四分音符=80のリズムを維持
         const baseNoteDuration = 750; // 4分音符の基準時間（ミリ秒）
         const noteExtraDelay = 0; // 音符の後に追加する時間（ミリ秒）
-        
+
         // ドラッグ&ドロップの処理を適切に登録する
-        window.addEventListener("DOMContentLoaded", () => {
-            document.querySelectorAll(".draggable").forEach(note => {
-                note.addEventListener("touchstart", touchStart, { passive: true });
-                note.addEventListener("touchmove", touchMove, { passive: true });
-                note.addEventListener("touchend", touchEnd, { passive: true });
-                note.addEventListener("dragstart", drag);
-                note.addEventListener("click", function() {
-                    if (this.parentElement && this.parentElement.id === "notes") {
-                        let soundType = this.id.includes("note3") ? "dodo" : "don";
-                        playSound(soundType);
-                    }
-                });
-            });
-        
-            document.querySelectorAll(".dropzone .slot").forEach(slot => {
-                slot.addEventListener("dragover", allowDrop);
-                slot.addEventListener("drop", drop);
-            });
+window.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".draggable").forEach(note => {
+        note.addEventListener("touchstart", touchStart, { passive: true });
+        note.addEventListener("touchmove", touchMove, { passive: true });
+        note.addEventListener("touchend", touchEnd, { passive: true });
+        note.addEventListener("dragstart", drag);
+        note.addEventListener("click", function () {
+            if (this.parentElement && this.parentElement.id === "notes") {
+                let soundType = this.id.includes("note3") ? "dodo" : "don";
+                playSound(soundType);
+            }
         });
+    });
+
+    document.querySelectorAll(".dropzone .slot").forEach(slot => {
+        slot.addEventListener("dragover", allowDrop);
+        slot.addEventListener("drop", drop);
+    });
+
+    // ページ全体のタッチ操作によるスクロールを許可しつつ、
+    // ドラッグ可能な音符カード以外ではドラッグイベントが発生しないようにする
+    document.addEventListener("touchmove", function (event) {
+        if (!event.target.closest(".draggable")) {
+            return; // ドラッグ対象でない場合は何もしない
+        }
+        event.preventDefault();
+    }, { passive: false });
+});
         
         // ページ全体のスクロールを防ぐ（iPad用）
         document.addEventListener("touchmove", function(event) {
             if (!event.target.classList.contains("draggable")) {
                 event.preventDefault();
             }
-        }, { passive: false });
+        }, { passive: true });
         
         // タッチイベントによるドラッグ処理
         let activeTouch = null;
