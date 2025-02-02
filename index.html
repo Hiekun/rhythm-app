@@ -230,40 +230,27 @@
             </button>
         </div>
     </div>
-    // Web Audio API を利用
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-const sounds = { don: null, dodo: null };
+    <script>
+        // 音声オブジェクトの定義
+const sounds = {
+    don: new Audio("4.mp3"),
+    dodo: new Audio("8.mp3")
+};
 
-// 音声を事前ロード
-function loadSounds() {
-    fetch("4.mp3")
-        .then(response => response.arrayBuffer())
-        .then(data => audioContext.decodeAudioData(data))
-        .then(buffer => sounds.don = buffer);
-
-    fetch("8.mp3")
-        .then(response => response.arrayBuffer())
-        .then(data => audioContext.decodeAudioData(data))
-        .then(buffer => sounds.dodo = buffer);
+// 音声ファイルの事前ロード
+function preloadSounds() {
+    Object.values(sounds).forEach(audio => {
+        audio.load();
+    });
 }
 
-// 音を再生
-function playSound(type, time = 0) {
-    if (sounds[type]) {
-        const source = audioContext.createBufferSource();
-        source.buffer = sounds[type];
-        source.connect(audioContext.destination);
-        source.start(audioContext.currentTime + time);
-    }
-}
+// 4/4拍子で四分音符=80のリズムを維持
+const baseNoteDuration = 750; // 4分音符の基準時間（ミリ秒）
+const noteExtraDelay = 0; // 音符の後に追加する時間（ミリ秒）
 
-// 4/4拍子のリズムを維持（基準時間：四分音符=80）
-const baseNoteDuration = 0.75; // 秒単位（750ms = 0.75秒）
-const noteExtraDelay = 0; // 追加時間（秒）
-
-// ドラッグ&ドロップの処理を適切に登録
+// ドラッグ&ドロップの処理を適切に登録する
 window.addEventListener("DOMContentLoaded", () => {
-    loadSounds(); // 音声を事前ロード
+    preloadSounds(); // mp3ファイルを事前ロード
 
     document.querySelectorAll(".draggable").forEach(note => {
         note.addEventListener("touchstart", touchStart, { passive: true });
@@ -283,14 +270,22 @@ window.addEventListener("DOMContentLoaded", () => {
         slot.addEventListener("drop", drop);
     });
 
-    // iPad用スクロール制御
+    // ページ全体のタッチ操作によるスクロールを許可しつつ、
+    // ドラッグ可能な音符カード以外ではドラッグイベントが発生しないようにする
     document.addEventListener("touchmove", function (event) {
         if (!event.target.closest(".draggable")) {
-            return;
+            return; // ドラッグ対象でない場合は何もしない
         }
         event.preventDefault();
     }, { passive: false });
 });
+
+// ページ全体のスクロールを防ぐ（iPad用）
+document.addEventListener("touchmove", function(event) {
+    if (!event.target.classList.contains("draggable")) {
+        event.preventDefault();
+    }
+}, { passive: true });
 
 // タッチイベントによるドラッグ処理
 let activeTouch = null;
@@ -311,12 +306,12 @@ function touchEnd(ev) {
     activeTouch = null;
 }
 
-// ドラッグを許可
+// ドラッグを許可する関数
 function allowDrop(ev) {
     ev.preventDefault();
 }
 
-// ドラッグ開始
+// ドラッグ開始時の処理
 function drag(ev) {
     ev.dataTransfer.setData("text", ev.target.id);
 }
@@ -333,7 +328,16 @@ function drop(ev) {
     }
 }
 
-// 音符の順番に再生
+// 音声再生の関数
+function playSound(type) {
+    if (sounds[type]) {
+        sounds[type].pause();
+        sounds[type].currentTime = 0;
+        sounds[type].play().catch(error => console.error("再生エラー:", error));
+    }
+}
+
+// 音符の順番に再生する関数
 function playSequence() {
     if (isPlaying) return;
     isPlaying = true;
@@ -341,31 +345,40 @@ function playSequence() {
 
     const slots = document.querySelectorAll(".dropzone .slot");
     let soundsToPlay = [];
-    let delay = 0;
 
-    slots.forEach(slot => {
+    slots.forEach((slot, index) => {
         if (slot.children.length > 0) {
             const noteId = slot.children[0].id;
             let soundType = noteId.includes("note3") ? "dodo" : "don";
-            soundsToPlay.push({ type: soundType, delay: delay });
-            delay += baseNoteDuration; // 次の音までの時間を追加
+            soundsToPlay.push({ type: soundType });
         }
     });
 
-    soundsToPlay.forEach(note => {
-        playSound(note.type, note.delay);
-    });
+    let index = 0;
+    function playNextSound() {
+        if (index >= soundsToPlay.length) {
+            isPlaying = false;
+            document.getElementById("play").disabled = false;
+            return;
+        }
 
-    setTimeout(() => {
-        isPlaying = false;
-        document.getElementById("play").disabled = false;
-    }, (delay + noteExtraDelay) * 1000);
+        let sound = sounds[soundsToPlay[index].type];
+        sound.currentTime = 0;
+        sound.play().then(() => {
+            setTimeout(playNextSound, baseNoteDuration);
+        }).catch(error => console.error("再生エラー:", error));
+
+        index++;
+    }
+
+    playNextSound();
 }
 
 // 再生ボタンのクリックイベント
 let isPlaying = false;
 document.getElementById("play").addEventListener("click", playSequence);
 
+        </script>
                                                     
 </body>
 </html>
