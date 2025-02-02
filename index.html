@@ -237,13 +237,9 @@ const sounds = {
     dodo: new Audio("dodo.mp3")
 };
 
-// 再生設定（カスタマイズ可能）
-let quarterNoteSpeed = 300; // 4分音符の再生時間（ミリ秒）
-let eighthNoteSpeed = 150; // 8分音符の再生時間（ミリ秒）
-let quarterNotePreDelay = 0; // 4分音符の前に追加する時間（ミリ秒）
-let quarterNotePostDelay = 300; // 4分音符の後に追加する時間（ミリ秒）
-let eighthNotePreDelay = -100; // 8分音符の前に追加する時間（ミリ秒）
-let eighthNotePostDelay = 0; // 8分音符の後に追加する時間（ミリ秒）
+// 4分音符＝80で統一するためのタイミング調整
+const baseNoteDuration = 750; // 4分音符の基準時間（ミリ秒）
+const eighthNoteDuration = baseNoteDuration / 2; // 8分音符の時間（ミリ秒）
 
 // ドラッグ&ドロップの処理を適切に登録する
 window.addEventListener("DOMContentLoaded", () => {
@@ -312,13 +308,10 @@ function playSequence() {
         if (slot.children.length > 0) {
             const noteId = slot.children[0].id;
             let soundType = noteId === "note3" ? "dodo" : "don";
-            let duration = soundType === "dodo" ? eighthNoteSpeed : quarterNoteSpeed;
-            let preDelay = soundType === "dodo" ? eighthNotePreDelay : quarterNotePreDelay;
-            let postDelay = soundType === "dodo" ? eighthNotePostDelay : quarterNotePostDelay;
+            let duration = soundType === "dodo" ? eighthNoteDuration : baseNoteDuration;
             
-            totalDelay += preDelay;
             soundsToPlay.push({ type: soundType, delay: totalDelay });
-            totalDelay += duration + postDelay;
+            totalDelay += duration;
         }
     });
 
