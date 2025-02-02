@@ -239,10 +239,6 @@ const sounds = {
 // 再生設定（カスタマイズ可能）
 let quarterNoteSpeed = 600; // 4分音符の再生時間（ミリ秒）
 let eighthNoteSpeed = 300; // 8分音符の再生時間（ミリ秒・1回の再生）
-let quarterNotePreDelay = 100; // 4分音符の前に追加する時間（ミリ秒）
-let quarterNotePostDelay = 200; // 4分音符の後に追加する時間（ミリ秒）
-let eighthNotePreDelay = 80; // 8分音符の前に追加する時間（ミリ秒）
-let eighthNotePostDelay = 150; // 8分音符の後に追加する時間（ミリ秒）
 
 // ドラッグ&ドロップの処理を適切に登録する
 window.addEventListener("DOMContentLoaded", () => {
@@ -292,18 +288,21 @@ function drop(ev) {
 // 4分音符と8分音符を適切に再生する関数
 function playNote(type, callback = null) {
     if (type === "eighth") {
-        // 8分音符の場合、2回連続で再生
+        // 8分音符の場合、倍速で2回連続再生
+        sounds.don.playbackRate = 2.0; // 倍速再生
         sounds.don.currentTime = 0;
         sounds.don.play().then(() => {
             setTimeout(() => {
                 sounds.don.currentTime = 0;
                 sounds.don.play().then(() => {
+                    sounds.don.playbackRate = 1.0; // 再生速度を元に戻す
                     if (callback) callback();
                 });
             }, eighthNoteSpeed);
         }).catch(error => console.error("再生エラー:", error));
     } else {
         // 4分音符の再生
+        sounds.don.playbackRate = 1.0; // 通常速度
         sounds.don.currentTime = 0;
         sounds.don.play().then(() => {
             if (callback) callback();
@@ -326,9 +325,7 @@ function playSequence() {
             const noteId = slot.children[0].id;
             let isEighthNote = noteId.includes("note3");
             soundsToPlay.push({
-                type: isEighthNote ? "eighth" : "quarter",
-                preDelay: isEighthNote ? eighthNotePreDelay : quarterNotePreDelay,
-                postDelay: isEighthNote ? eighthNotePostDelay : quarterNotePostDelay
+                type: isEighthNote ? "eighth" : "quarter"
             });
         }
     });
@@ -342,13 +339,9 @@ function playSequence() {
 
         let note = soundsToPlay[index];
 
-        setTimeout(() => {
-            playNote(note.type, () => {
-                setTimeout(() => {
-                    playNextSound(index + 1);
-                }, note.postDelay);
-            });
-        }, note.preDelay);
+        playNote(note.type, () => {
+            playNextSound(index + 1);
+        });
     }
 
     playNextSound(0);
