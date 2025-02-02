@@ -243,39 +243,42 @@
         
         // ドラッグ&ドロップの処理を適切に登録する
         window.addEventListener("DOMContentLoaded", () => {
-            // タッチデバイス向けに長押し不要でドラッグ可能にする
             document.querySelectorAll(".draggable").forEach(note => {
-                note.addEventListener("touchstart", touchDragStart, { passive: false });
+                note.addEventListener("touchstart", touchStart, { passive: false });
+                note.addEventListener("touchmove", touchMove, { passive: false });
+                note.addEventListener("touchend", touchEnd, { passive: false });
                 note.addEventListener("dragstart", drag);
                 note.addEventListener("click", function() {
-                    if (this.parentElement && this.parentElement.id === "notes") { // 上段のときのみ再生
+                    if (this.parentElement && this.parentElement.id === "notes") {
                         let soundType = this.id.includes("note3") ? "dodo" : "don";
                         playSound(soundType);
                     }
                 });
             });
         
-            // 2. すべてのドロップゾーンにイベントを追加
             document.querySelectorAll(".dropzone .slot").forEach(slot => {
                 slot.addEventListener("dragover", allowDrop);
                 slot.addEventListener("drop", drop);
             });
         });
         
-        // タッチデバイスのドラッグ処理
-        function touchDragStart(ev) {
+        // タッチイベントによるドラッグ処理
+        let activeTouch = null;
+        function touchStart(ev) {
+            ev.preventDefault();
+            activeTouch = ev.touches[0];
+        }
+        function touchMove(ev) {
+            if (!activeTouch) return;
             ev.preventDefault();
             let touch = ev.touches[0];
-            let target = ev.target.closest(".draggable");
-            if (target) {
-                let event = new DragEvent("dragstart", {
-                    bubbles: true,
-                    cancelable: true,
-                    dataTransfer: new DataTransfer()
-                });
-                event.dataTransfer.setData("text", target.id);
-                target.dispatchEvent(event);
+            let element = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (element && element.classList.contains("slot")) {
+                element.appendChild(ev.target);
             }
+        }
+        function touchEnd(ev) {
+            activeTouch = null;
         }
         
         // ドラッグを許可する関数
@@ -293,8 +296,6 @@
             ev.preventDefault();
             let data = ev.dataTransfer.getData("text");
             let draggedElement = document.getElementById(data);
-        
-            // すでに要素が入っていないスロットにのみドロップ可能
             if (!ev.target.hasChildNodes()) {
                 ev.target.appendChild(draggedElement);
                 draggedElement.style.width = "100%";
@@ -313,14 +314,12 @@
         
         // 音符の順番に再生する関数
         function playSequence() {
-            if (isPlaying) return; // すでに再生中なら実行しない
+            if (isPlaying) return;
             isPlaying = true;
             document.getElementById("play").disabled = true;
         
             const slots = document.querySelectorAll(".dropzone .slot");
             let soundsToPlay = [];
-            
-            // 4拍子のリズムを正しく維持
             slots.forEach((slot, index) => {
                 if (slot.children.length > 0) {
                     const noteId = slot.children[0].id;
@@ -351,6 +350,6 @@
         // 再生ボタンのクリックイベント
         let isPlaying = false;
         document.getElementById("play").addEventListener("click", playSequence);
-        </script>                                                 
+        </script>                                               
 </body>
 </html>
