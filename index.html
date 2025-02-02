@@ -252,7 +252,7 @@ window.addEventListener("DOMContentLoaded", () => {
         note.addEventListener("dragstart", drag);
         note.addEventListener("click", function() {
             if (this.parentElement && this.parentElement.id === "notes") { // 上段のときのみ再生
-                let soundType = this.id.includes("note3") ? "dodo" : "don";
+                let soundType = this.id === "note3" ? "dodo" : "don";
                 playSound(soundType);
             }
         });
@@ -311,7 +311,7 @@ function playSequence() {
     slots.forEach(slot => {
         if (slot.children.length > 0) {
             const noteId = slot.children[0].id;
-            let soundType = noteId.includes("note3") ? "dodo" : "don";
+            let soundType = noteId === "note3" ? "dodo" : "don";
             let duration = soundType === "dodo" ? eighthNoteSpeed : quarterNoteSpeed;
             let preDelay = soundType === "dodo" ? eighthNotePreDelay : quarterNotePreDelay;
             let postDelay = soundType === "dodo" ? eighthNotePostDelay : quarterNotePostDelay;
