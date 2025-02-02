@@ -231,7 +231,7 @@
         </div>
     </div>
     <script>
-// 音声オブジェクトの定義
+        // 音声オブジェクトの定義
 const sounds = {
     don: new Audio("don.mp3")
 };
@@ -240,19 +240,20 @@ const sounds = {
 let quarterNoteSpeed = 600; // 4分音符の再生時間（ミリ秒）
 let eighthNoteSpeed = 300; // 8分音符の再生時間（ミリ秒・1回の再生）
 let quarterNotePreDelay = 100; // 4分音符の前に追加する時間（ミリ秒）
-let quarterNotePostDelay = 100; // 4分音符の後に追加する時間（ミリ秒）
-let eighthNotePreDelay = 100; // 8分音符の前に追加する時間（ミリ秒）
-let eighthNotePostDelay = 100; // 8分音符の後に追加する時間（ミリ秒）
+let quarterNotePostDelay = 200; // 4分音符の後に追加する時間（ミリ秒）
+let eighthNotePreDelay = 80; // 8分音符の前に追加する時間（ミリ秒）
+let eighthNotePostDelay = 150; // 8分音符の後に追加する時間（ミリ秒）
 
 // ドラッグ&ドロップの処理を適切に登録する
 window.addEventListener("DOMContentLoaded", () => {
     // 1. すべてのドラッグ可能な要素にイベントを追加
     document.querySelectorAll(".draggable").forEach(note => {
         note.addEventListener("dragstart", drag);
-        note.addEventListener("click", function() {
-            if (this.parentElement && this.parentElement.id === "notes") { // 上段のときのみ再生
-                let isEighthNote = this.id.includes("note3");
-                playNoteSequence(isEighthNote);
+        note.addEventListener("click", function(event) {
+            let noteElement = event.target.closest(".draggable"); // クリックした要素の親要素を取得
+            if (noteElement && noteElement.parentElement.id === "notes") { // 上段のときのみ再生
+                let isEighthNote = noteElement.id.includes("note3");
+                playNote(isEighthNote ? "eighth" : "quarter");
             }
         });
     });
@@ -289,19 +290,24 @@ function drop(ev) {
 }
 
 // 4分音符と8分音符を適切に再生する関数
-function playNoteSequence(isEighthNote) {
-    if (isEighthNote) {
+function playNote(type, callback = null) {
+    if (type === "eighth") {
         // 8分音符の場合、2回連続で再生
+        sounds.don.currentTime = 0;
         sounds.don.play().then(() => {
             setTimeout(() => {
                 sounds.don.currentTime = 0;
-                sounds.don.play();
+                sounds.don.play().then(() => {
+                    if (callback) callback();
+                });
             }, eighthNoteSpeed);
         }).catch(error => console.error("再生エラー:", error));
     } else {
         // 4分音符の再生
         sounds.don.currentTime = 0;
-        sounds.don.play().catch(error => console.error("再生エラー:", error));
+        sounds.don.play().then(() => {
+            if (callback) callback();
+        }).catch(error => console.error("再生エラー:", error));
     }
 }
 
@@ -312,41 +318,46 @@ function playSequence() {
     document.getElementById("play").disabled = true;
 
     const slots = document.querySelectorAll(".dropzone .slot");
-    let totalDelay = 0;
+    let soundsToPlay = [];
+    
+    // 再生順に音符情報を保存
+    slots.forEach(slot => {
+        if (slot.children.length > 0) {
+            const noteId = slot.children[0].id;
+            let isEighthNote = noteId.includes("note3");
+            soundsToPlay.push({
+                type: isEighthNote ? "eighth" : "quarter",
+                preDelay: isEighthNote ? eighthNotePreDelay : quarterNotePreDelay,
+                postDelay: isEighthNote ? eighthNotePostDelay : quarterNotePostDelay
+            });
+        }
+    });
 
-    function scheduleNotePlayback(index) {
-        if (index >= slots.length) {
+    function playNextSound(index) {
+        if (index >= soundsToPlay.length) {
             isPlaying = false;
             document.getElementById("play").disabled = false;
             return;
         }
 
-        let slot = slots[index];
-        if (slot.children.length > 0) {
-            const noteId = slot.children[0].id;
-            let isEighthNote = noteId.includes("note3");
-            let preDelay = isEighthNote ? eighthNotePreDelay : quarterNotePreDelay;
-            let postDelay = isEighthNote ? eighthNotePostDelay : quarterNotePostDelay;
-            let duration = isEighthNote ? eighthNoteSpeed : quarterNoteSpeed;
-            
-            setTimeout(() => {
-                playNoteSequence(isEighthNote);
+        let note = soundsToPlay[index];
+
+        setTimeout(() => {
+            playNote(note.type, () => {
                 setTimeout(() => {
-                    scheduleNotePlayback(index + 1);
-                }, duration + postDelay);
-            }, preDelay);
-        } else {
-            scheduleNotePlayback(index + 1);
-        }
+                    playNextSound(index + 1);
+                }, note.postDelay);
+            });
+        }, note.preDelay);
     }
 
-    scheduleNotePlayback(0);
+    playNextSound(0);
 }
 
 // 再生ボタンのクリックイベント
 let isPlaying = false;
 document.getElementById("play").addEventListener("click", playSequence);
-</script>
+        </script>
                              
 </body>
 </html>
